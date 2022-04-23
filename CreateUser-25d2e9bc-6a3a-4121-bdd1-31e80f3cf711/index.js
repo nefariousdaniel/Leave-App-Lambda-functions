@@ -81,17 +81,3 @@ exports.handler = async function (event,context){
         await client.close();
     }
 };
-
-
-var data = {
-    fullname: "some guy",
-    email: "nefariousdaniel@gmail.com",
-    password: "qwertyuiop",
-    is_admin: Boolean(true),
-    leave_balance: 15,
-    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2MjU1YWZmZmZlZDc3ZGRkMzliNzA0N2UiLCJjb21wYW55X2lkIjoiNjI1NWFmZmVmZWQ3N2RkZDM5YjcwNDdjIiwiZnVsbG5hbWUiOiJQYXNjb2FsIERhbmllbCBGZXJuYW5kZXMiLCJlbWFpbCI6InBhc2NvYWxAYWplbmN5LmluIiwibGVhdmVfYmFsYW5jZSI6MTUsImlzX2FkbWluIjp0cnVlLCJjcmVhdGVkX3RpbWUiOiIyMDIyLTA0LTEyVDE2OjU5OjQyLjA3N1oiLCJ1cGRhdGVkX3RpbWUiOiIyMDIyLTA0LTEyVDE2OjU5OjQyLjA3N1oiLCJpYXQiOjE2NDk3ODMwMjB9.BCphgoRUitusIqb14MHx3rFLzx72xImwFyv-c0oO_kY"
-}
-
-this.handler(data).then(e=>{
-    console.log(e)
-})

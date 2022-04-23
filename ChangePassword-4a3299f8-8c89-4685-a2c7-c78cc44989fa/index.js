@@ -10,7 +10,6 @@ exports.handler = async (event) => {
      
     try {
         let auth = await jwt.verify(event.token,"SOMESECRETJIBBERJABBER");
-        if(!auth.is_admin) throw "Invalid Token";
         let id = ObjectID(event.user_id);
         delete event.user_id;
         delete event.token;
