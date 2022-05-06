@@ -1,17 +1,20 @@
 const jwt = require("jsonwebtoken");
 const { MongoClient } = require("mongodb");
 const { ObjectID } = require("bson");
-var nodemailer = require('nodemailer');
+var AWS = require('aws-sdk');
+
+AWS.config.update({region: 'ap-south-1'});
+
+var sqs = new AWS.SQS({apiVersion: '2012-11-05'});
 
 
-var mongoURI = `mongodb+srv://pascoal:N9mn5sXQFpE3bcJj@cluster0.jlhi5.mongodb.net/leave`;
+var mongoURI = `mongodb+srv://pascoal:eNgUpJZ8PWKmibmB@cluster0.jlhi5.mongodb.net/leave`;
 const client = new MongoClient(mongoURI);
 
-
+var sqsdata = {};
 
 exports.handler = async function (event,context){
 
-    var maildata = {};
     
     try {
         let auth = await jwt.verify(event.token,"SOMESECRETJIBBERJABBER");
@@ -21,14 +24,11 @@ exports.handler = async function (event,context){
         event.is_rejected = Boolean(parseInt(0));
         if(event.is_approved === 0) event.is_rejected = Boolean(parseInt(1));
         event.is_approved =  Boolean(parseInt(event.is_approved));
-        maildata.is_approved = event.is_approved;
 
         await client.connect();
         event.number_of_days  = parseInt(0);
         let res = await client.db("leave").collection("leave").findOne({"_id":event.leave_id});
-        maildata.start_date = res.start_date.toString();
-        maildata.end_date = res.end_date.toString();
-        maildata.description = res.description;
+        sqsdata.leave = res;
         if(event.is_approved){
             let date = new Date(res.start_date).getTime() - new Date(res.end_date).getTime();
             date = date / (1000 * 60 * 60 * 24);
@@ -39,34 +39,19 @@ exports.handler = async function (event,context){
         var result = await client.db("leave").collection("leave").updateOne({_id:event.leave_id},{$set:{is_approved:event.is_approved,is_rejected:event.is_rejected}});
         if(result.matchedCount === 0) throw "Something went wrong while approving";
         result = await client.db("leave").collection("user").updateOne({email:event.email},{$inc:{leave_balance: event.number_of_days}});
+        var userResult = await client.db("leave").collection("user").findOne({"_id":sqsdata.leave.user_id});
+        sqsdata.user = userResult;
+        sqsdata.approvedBy = auth;
 
+        console.log(sqsdata)
+        
+        const SQSMessage = {
+            MessageBody:JSON.stringify(sqsdata),
+            QueueUrl:"https://sqs.ap-south-1.amazonaws.com/420019835347/LeaveAppIntegrationQueue",
+            DelaySeconds:10,
+        }
 
-        var transporter = nodemailer.createTransport({
-            host: "smtp-mail.outlook.com", // hostname
-            secureConnection: false, // TLS requires secureConnection to be false
-            port: 587, // port for secure SMTP
-            tls: {
-               ciphers:'SSLv3'
-            },
-            auth: {
-                user: 'leavemanagementapp@outlook.com',
-                pass: 'qwertyuiop1234567890'
-            }
-        });
-
-        var mailOptions = {
-            from: 'leavemanagementapp@outlook.com', // sender address (who sends)
-            to: `${event.email}`, // list of receivers (who receives)
-            subject: 'Leave Management Status ', // Subject line
-            html: `<h1>Leave Management Status</h1>
-            <p>Your leave approval from: </p>
-            <p>From: ${maildata.start_date}</p>
-            <p>To: ${maildata.end_date} </p>
-            <p>For: <i>${maildata.description}</i> </p>
-            <p>is <b>${maildata.is_approved ? "Approved" : "Rejected"}</b></p>` // html body
-        };
-
-        console.log(await transporter.sendMail(mailOptions));
+        var SQSResult =  await sqs.sendMessage(SQSMessage).promise();
 
         return {"status":"OK","message":"Successful"};
 
@@ -77,5 +62,3 @@ exports.handler = async function (event,context){
         await client.close();
     }
 }
-
-
